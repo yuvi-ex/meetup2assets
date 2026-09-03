@@ -1,0 +1,75 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "0 · Preflight",
+      "type": "shell",
+      "command": "./00_preflight.sh",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "1 · Install Virtual Schema",
+      "type": "shell",
+      "command": "./01_install_vs.sh",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "2 · Load MongoDB",
+      "type": "shell",
+      "command": "./02_load_mongodb.sh",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "3 · Load Exasol",
+      "type": "shell",
+      "command": "./03_load_exasol.sh",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "4 · Create Virtual Schema",
+      "type": "shell",
+      "command": "./04_create_virtual_schema.sh",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "5 · The Question (join both engines)",
+      "type": "shell",
+      "command": "./05_the_question.sh",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "6 · Dashboards",
+      "type": "shell",
+      "command": "./06_dashboard.sh",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "7 · ML UDF (train → BucketFS → SQL)",
+      "type": "shell",
+      "command": "./07_ml_udf.sh",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "99 · Reset (steps 2-6)",
+      "type": "shell",
+      "command": "./99_reset.sh",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "99 · Reset step 7 only",
+      "type": "shell",
+      "command": "./99_reset_ml.sh",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    }
+  ]
+}

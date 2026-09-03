@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Undo step 7 only, so it can be demonstrated again from nothing.
+source "$(dirname "$0")/lib/common.sh"
+ML="$(dirname "$0")/ml"
+say "Dropping the ML schema (both UDFs)"
+xsql -c "DROP SCHEMA IF EXISTS ML CASCADE;" >/dev/null && ok "dropped"
+say "Removing the model from BucketFS"
+node_ssh 'rm -rf /var/lib/exa/bucketfs/bfsdefault/ml' && ok "removed"
+say "Removing the local artifacts"
+rm -f "$ML/loss_model.pkl" "$ML/loss_model.meta.json" "$ML/superstore_train.csv" && ok "removed"
+warn "kept the exasol-ml-train Docker image — delete it with 'docker rmi exasol-ml-train'"
+warn "                                        to also rehearse the 2-minute image build"
+say "Step 7 is back to nothing. Run ./07_ml_udf.sh to rebuild it live."

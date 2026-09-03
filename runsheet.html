@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Virtual Schema Live Run-Sheet</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,500;0,600;1,400&display=swap">
+<style>:root{color-scheme:light dark}body{margin:0;padding:0}img{max-width:100%}</style>
+<style>
+  :root{
+    --paper:#f6f7f6;
+    --card:#ffffff;
+    --ink:#12211d;
+    --ink-soft:#4a5c56;
+    --ink-faint:#75857f;
+    --rule:#dde3e0;
+    --rule-strong:#c3cdc9;
+    --accent:#0f6b5c;
+    --accent-soft:#e2efeb;
+    --amber:#8a5a00;
+    --amber-soft:#fbf0d9;
+    --danger:#96261f;
+    --danger-soft:#fbe6e3;
+    --term-bg:#0d1a17;
+    --term-ink:#d6e4df;
+    --term-dim:#7d968e;
+    --term-key:#7fd1b9;
+    --term-str:#e0b877;
+    --shadow:0 1px 2px rgba(18,33,29,.06), 0 8px 24px -16px rgba(18,33,29,.35);
+    --maxw:60rem;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0c1512;
+      --card:#121e1a;
+      --ink:#e6efeb;
+      --ink-soft:#a7b8b2;
+      --ink-faint:#7d918a;
+      --rule:#22322d;
+      --rule-strong:#31443e;
+      --accent:#5ec8ab;
+      --accent-soft:#16302a;
+      --amber:#e0b060;
+      --amber-soft:#2c2417;
+      --danger:#e88b80;
+      --danger-soft:#2e1a18;
+      --term-bg:#08110f;
+      --term-ink:#cfe0da;
+      --term-dim:#6e857e;
+      --term-key:#7fd1b9;
+      --term-str:#e0b877;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0c1512; --card:#121e1a; --ink:#e6efeb; --ink-soft:#a7b8b2;
+    --ink-faint:#7d918a; --rule:#22322d; --rule-strong:#31443e;
+    --accent:#5ec8ab; --accent-soft:#16302a; --amber:#e0b060; --amber-soft:#2c2417;
+    --danger:#e88b80; --danger-soft:#2e1a18; --term-bg:#08110f; --term-ink:#cfe0da;
+    --term-dim:#6e857e; --term-key:#7fd1b9; --term-str:#e0b877;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:15px; line-height:1.62; margin:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 1.5rem 5rem}
+
+  /* ---------- masthead ---------- */
+  header.masthead{
+    border-bottom:2px solid var(--ink); margin-bottom:2.5rem;
+    padding:3rem 0 1.5rem;
+    display:flex; flex-wrap:wrap; gap:1.5rem; align-items:flex-end;
+    justify-content:space-between;
+  }
+  .masthead h1{
+    font-family:"IBM Plex Serif",Georgia,serif; font-weight:600;
+    font-size:clamp(1.9rem,4.2vw,2.9rem); line-height:1.1; margin:.35rem 0 0;
+    letter-spacing:-.015em; text-wrap:balance; max-width:20ch;
+  }
+  .eyebrow{
+    font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.7rem;
+    text-transform:uppercase; letter-spacing:.16em; color:var(--accent);
+    font-weight:600; margin:0;
+  }
+  .masthead p.sub{
+    margin:.9rem 0 0; color:var(--ink-soft); max-width:52ch; font-size:1.02rem;
+  }
+  .runmeta{
+    font-family:"IBM Plex Mono",monospace; font-size:.76rem; color:var(--ink-faint);
+    display:grid; gap:.3rem; text-align:right; min-width:12rem;
+  }
+  .runmeta b{color:var(--ink); font-weight:600}
+
+  /* ---------- shared bits ---------- */
+  h2.sec{
+    font-family:"IBM Plex Serif",Georgia,serif; font-size:1.35rem; font-weight:600;
+    margin:3.5rem 0 1rem; padding-bottom:.5rem; border-bottom:1px solid var(--rule-strong);
+    letter-spacing:-.01em;
+  }
+  p{margin:0 0 1rem; max-width:66ch}
+  a{color:var(--accent)}
+  code{
+    font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.88em;
+    background:var(--accent-soft); color:var(--ink); padding:.1em .35em; border-radius:3px;
+  }
+  .term code{background:none;padding:0}
+
+  /* ---------- the step list ---------- */
+  ol.steps{list-style:none; margin:0; padding:0; display:grid; gap:1.6rem}
+  li.step{
+    background:var(--card); border:1px solid var(--rule); border-radius:6px;
+    box-shadow:var(--shadow); overflow:hidden;
+  }
+  .step-head{
+    display:grid; grid-template-columns:3.2rem 1fr auto; align-items:baseline;
+    gap:.9rem; padding:1.1rem 1.25rem .5rem;
+  }
+  .stepno{
+    font-family:"IBM Plex Mono",monospace; font-size:1.5rem; font-weight:600;
+    color:var(--accent); line-height:1; font-variant-numeric:tabular-nums;
+  }
+  .step-head h3{
+    font-family:"IBM Plex Serif",Georgia,serif; font-size:1.18rem; font-weight:600;
+    margin:0; letter-spacing:-.01em; text-wrap:balance;
+  }
+  .clock{
+    font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--ink-faint);
+    white-space:nowrap; letter-spacing:.04em;
+  }
+  .step-body{padding:0 1.25rem 1.25rem 5.35rem}
+  @media (max-width:640px){
+    .step-head{grid-template-columns:2.4rem 1fr; }
+    .clock{grid-column:2; }
+    .step-body{padding-left:1.25rem}
+  }
+  .say{
+    font-family:"IBM Plex Serif",Georgia,serif; font-style:italic;
+    font-size:1.02rem; color:var(--ink-soft); border-left:2px solid var(--accent);
+    padding-left:.9rem; margin:.2rem 0 1rem; max-width:60ch;
+  }
+
+  /* ---------- terminal blocks ---------- */
+  .term{
+    background:var(--term-bg); color:var(--term-ink); border-radius:5px;
+    font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.815rem;
+    line-height:1.65; padding:.85rem 1rem; overflow-x:auto; margin:0 0 .9rem;
+    white-space:pre; tab-size:2;
+  }
+  .term .p{color:var(--term-key)}      /* prompt */
+  .term .c{color:var(--term-dim)}      /* comment */
+  .term .s{color:var(--term-str)}      /* string / value */
+  .term.out{
+    background:none; color:var(--ink-soft); border:1px dashed var(--rule-strong);
+    font-size:.78rem;
+  }
+  .outlabel{
+    font-family:"IBM Plex Mono",monospace; font-size:.66rem; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--ink-faint); margin:0 0 .35rem;
+  }
+
+  /* ---------- callouts ---------- */
+  .note{
+    border-left:3px solid var(--amber); background:var(--amber-soft);
+    padding:.7rem .9rem; border-radius:0 4px 4px 0; margin:0 0 .9rem;
+    font-size:.9rem; color:var(--ink); max-width:64ch;
+  }
+  .note.stop{border-left-color:var(--danger); background:var(--danger-soft)}
+  .note b{font-weight:600}
+  .note .tag{
+    font-family:"IBM Plex Mono",monospace; font-size:.66rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--amber); display:block; margin-bottom:.15rem;
+    font-weight:600;
+  }
+  .note.stop .tag{color:var(--danger)}
+
+  /* ---------- tables ---------- */
+  .tablewrap{overflow-x:auto; margin:0 0 1rem}
+  table{border-collapse:collapse; width:100%; font-size:.86rem; min-width:32rem}
+  th,td{text-align:left; padding:.5rem .7rem; border-bottom:1px solid var(--rule); vertical-align:top}
+  th{
+    font-family:"IBM Plex Mono",monospace; font-size:.68rem; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--ink-faint); font-weight:600;
+    border-bottom:1px solid var(--rule-strong);
+  }
+  td.num{text-align:right; font-variant-numeric:tabular-nums; font-family:"IBM Plex Mono",monospace}
+  tbody tr:last-child td{border-bottom:none}
+  td code{font-size:.82em}
+
+  /* ---------- the payoff panel ---------- */
+  .payoff{
+    border:1px solid var(--accent); border-radius:6px; overflow:hidden;
+    background:var(--card); margin:0 0 1rem;
+  }
+  .payoff-head{
+    background:var(--accent-soft); padding:.6rem 1rem; font-weight:600;
+    font-size:.92rem; border-bottom:1px solid var(--accent);
+  }
+  .payoff-body{padding:1rem}
+  .verdict{
+    font-family:"IBM Plex Serif",Georgia,serif; font-size:1.05rem; margin:.6rem 0 0;
+    color:var(--ink); max-width:62ch;
+  }
+
+  /* ---------- board grid ---------- */
+  .boards{display:grid; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); gap:.75rem; margin:0 0 1rem}
+  .board{border:1px solid var(--rule); border-radius:5px; padding:.7rem .85rem; background:var(--card)}
+  .board h4{
+    margin:0 0 .2rem; font-family:"IBM Plex Mono",monospace; font-size:.8rem;
+    font-weight:600; color:var(--accent);
+  }
+  .board p{margin:0; font-size:.83rem; color:var(--ink-soft); max-width:none}
+
+  footer{
+    margin-top:4rem; padding-top:1.25rem; border-top:1px solid var(--rule);
+    font-size:.8rem; color:var(--ink-faint);
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <div>
+    <p class="eyebrow">Exasol Personal · meetup run-sheet</p>
+    <h1>One query, two engines, nothing copied</h1>
+    <p class="sub">Install the MongoDB Virtual Schema from the CLI, load both sides,
+      join them in a single SELECT, then hand the audience six dashboards built on
+      that join.</p>
+  </div>
+  <div class="runmeta">
+    <div><b>35 min</b> total run time</div>
+    <div><b>6</b> scripts, run in order</div>
+    <div><b>~/meetup-virtual-schema</b></div>
+    <div>2,500 rows · 250 documents</div>
+  </div>
+</header>
+
+<p>Every command below was executed on this machine and produced the output shown.
+Run the numbered scripts one at a time so the room watches each step land;
+<code>run_all.sh</code> exists for rehearsal, not for the talk.</p>
+
+<div class="term"><span class="p">$</span> cd ~/meetup-virtual-schema
+<span class="p">$</span> ./00_preflight.sh          <span class="c"># run this the morning of the meetup</span></div>
+
+<div class="note">
+  <span class="tag">Before you start</span>
+  Preflight checks the six tools, that the database says <code>database_ready</code>, that
+  Docker is up, that both data files exist, and whether the RUST language and the adapter
+  are already installed — so you know in advance whether step 1 takes 20 seconds or 3 minutes.
+</div>
+
+<h2 class="sec">The run</h2>
+
+<ol class="steps">
+
+  <li class="step">
+    <div class="step-head">
+      <span class="stepno">01</span>
+      <h3>Install the Virtual Schema from the CLI</h3>
+      <span class="clock">6 min</span>
+    </div>
+    <div class="step-body">
+      <p class="say">“Exasol doesn't speak MongoDB out of the box. Three things have to be
+        true: a Rust runtime, the adapter binary in BucketFS, and two SQL scripts. All of it
+        from the command line.”</p>
+
+      <div class="term"><span class="p">$</span> ./01_install_vs.sh</div>
+
+      <p><b>1a — the Rust container.</b> Show them this first, because it surprises people:</p>
+      <div class="term"><span class="p">$</span> exasol slc list
+<span class="c">FLAVOR       ALIASES             VERSION  INSTALLED</span>
+java-17      JAVA, JAVA17        11.2.0   no
+python-3.12  PYTHON3, PYTHON312  11.2.0   no
+r-4.4        R, R44              11.2.0   no</div>
+      <p>No Rust in the catalog. It comes from <code>exasol-labs/language-container-rs</code>,
+        and the script installs the prebuilt v0.23.0 tarball over SSH, then registers the
+        language with <code>ALTER SYSTEM</code> — which survives a restart.</p>
+
+      <p><b>1b — build the adapter, put it in BucketFS.</b></p>
+      <div class="term"><span class="p">$</span> make -C ~/exasol-mongodb-vs build-so verify-so
+<span class="c">Artifact verified: Linux ELF, expected entry points,</span>
+<span class="c">SLC fingerprint 0.23.0:rustc_1.94.1__e408947bf_2026-03-25_</span></div>
+
+      <p><b>1c — two SQL statements and it exists.</b></p>
+      <div class="outlabel">expected output</div>
+      <div class="term out">SCRIPT_NAME      SCRIPT_TYPE  SCRIPT_LANGUAGE
+MONGODB_ADAPTER  ADAPTER      RUST
+MONGODB_SCAN     UDF          RUST</div>
+
+      <div class="note">
+        <span class="tag">If you get asked</span>
+        BucketFS on Exasol Personal is a <b>directory</b> the engine reconciles into a bucket
+        in about a second. It starts empty, so the script <code>mkdir</code>s the bucket path
+        before <code>scp</code> — otherwise scp fails with an opaque
+        <code>dest open … Failure</code>. The SSH port is re-assigned on every
+        <code>exasol start</code>, so it is read fresh from <code>deployment.json</code> each run.
+      </div>
+    </div>
+  </li>
+
+  <li class="step">
+    <div class="step-head">
+      <span class="stepno">02</span>
+      <h3>Load MongoDB — documents stay documents</h3>
+      <span class="clock">4 min</span>
+    </div>
+    <div class="step-body">
+      <p class="say">“250 customers. Nested objects for location, loyalty and preferences.
+        I am not flattening anything — that's the whole point.”</p>
+
+      <div class="term"><span class="p">$</span> ./02_load_mongodb.sh</div>
+      <div class="outlabel">one document, shown to the room</div>
+      <div class="term out">{ customer_id: <span class="s">'C0004'</span>, name: <span class="s">'Diya Nguyen'</span>,
+  customer_segment: <span class="s">'Standard'</span>, age_band: <span class="s">'18-25'</span>,
+  location:    { city: <span class="s">'Pune'</span>, state: <span class="s">'MH'</span>, region: <span class="s">'West'</span> },
+  loyalty:     { member: true, points: 1724, tier: <span class="s">'Bronze'</span> },
+  preferences: { favorite_category: <span class="s">'Electronics'</span>, … },
+  lifetime_value: 9992, order_count: 29, satisfaction_score: 4 }</div>
+
+      <div class="note stop">
+        <span class="tag">Will bite you</span>
+        <b><code>mongo:8.0</code> and <code>mongo:latest</code> will not boot</b> on Docker
+        Desktop's current kernel (≥ 6.19, SERVER-121912) — the container exits instantly with
+        no obvious cause. The script pins <code>mongo:8.2</code>.
+      </div>
+      <div class="note">
+        <span class="tag">Why the script rewrites the JSON</span>
+        Integers are pinned to Int32 before import. Left as plain JSON numbers MongoDB stores
+        them as doubles, and the connector then exposes <b>both</b> <code>salary</code> and
+        <code>salary|double</code> — because it refuses to silently merge two BSON types into
+        one column. That is correct behaviour, but it is a confusing thing to explain live.
+      </div>
+    </div>
+  </li>
+
+  <li class="step">
+    <div class="step-head">
+      <span class="stepno">03</span>
+      <h3>Load Exasol — an ordinary table</h3>
+      <span class="clock">3 min</span>
+    </div>
+    <div class="step-body">
+      <p class="say">“The order facts are relational and they belong in Exasol. Typed columns,
+        a primary key, a bulk load. Nothing exotic.”</p>
+
+      <div class="term"><span class="p">$</span> ./03_load_exasol.sh
+<span class="c">Imported 2500 rows</span></div>
+      <div class="outlabel">expected output</div>
+      <div class="term out">ROWS_LOADED  CUSTOMERS  FROM_DAY    TO_DAY      DELIVERY_DAYS_PRESENT
+2500         250        2025-01-01  2025-10-27  1786</div>
+
+      <div class="note">
+        <span class="tag">Point at the last column</span>
+        1,786 of 2,500 — <code>DELIVERY_DAYS</code> is NULL for every Cancelled and Processing
+        line. That is structural, not dirty data, and it is why the boards never divide
+        delivery time by the full row count.
+      </div>
+      <div class="note stop">
+        <span class="tag">Will bite you</span>
+        A <b>CRLF</b> CSV puts a trailing <code>\r</code> inside the last column, so
+        <code>= 'Delivered'</code> matches nothing while every row count still looks right.
+        The script strips CRs and uppercases the header before loading.
+      </div>
+    </div>
+  </li>
+
+  <li class="step">
+    <div class="step-head">
+      <span class="stepno">04</span>
+      <h3>Create the virtual schema — the moment</h3>
+      <span class="clock">5 min</span>
+    </div>
+    <div class="step-body">
+      <p class="say">“No DDL. No column list. No copy. Two statements, and 250 MongoDB
+        documents are queryable SQL objects.”</p>
+
+      <div class="term"><span class="p">$</span> ./04_create_virtual_schema.sh</div>
+      <div class="term">CREATE OR REPLACE CONNECTION MONGODB_RETAIL
+TO <span class="s">'mongodb://192.168.64.1:27017/?authSource=admin'</span>
+USER <span class="s">'analytics_reader'</span> IDENTIFIED BY <span class="s">'…'</span>;
+
+CREATE VIRTUAL SCHEMA MONGO_RETAIL
+USING MONGODB_VS.MONGODB_ADAPTER WITH
+  MONGODB_CONNECTION=<span class="s">'MONGODB_RETAIL'</span>
+  DATABASE=<span class="s">'retail'</span>
+  COLLECTION=<span class="s">'customers'</span>;</div>
+
+      <p><b>One collection became four tables.</b> This is the slide that lands:</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Table</th><th>What it is</th><th>Joined by</th></tr></thead>
+          <tbody>
+            <tr><td><code>CUSTOMERS</code></td><td>the root document</td><td>—</td></tr>
+            <tr><td><code>CUSTOMERS_location</code></td><td>embedded <code>location</code> object</td><td><code>location|object</code></td></tr>
+            <tr><td><code>CUSTOMERS_loyalty</code></td><td>embedded <code>loyalty</code> object</td><td><code>loyalty|object</code></td></tr>
+            <tr><td><code>CUSTOMERS_preferences</code></td><td>embedded <code>preferences</code> object</td><td><code>preferences|object</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>And the naming conventions people always ask about:</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Suffix</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>x|object</code></td><td>foreign key to that child table's <code>_id</code></td></tr>
+            <tr><td><code>x|array</code></td><td>the element <b>count</b> — elements live in an <code>_arr</code> child table</td></tr>
+            <tr><td><code>x|empty</code></td><td>empty string, kept distinct from a missing field</td></tr>
+            <tr><td><code>x|n</code></td><td>an explicit JSON <code>null</code>, kept distinct from absent</td></tr>
+            <tr><td><code>__mongodb_source_json</code></td><td>the whole original document, if you want to show the raw JSON</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <span class="tag">The one address that matters</span>
+        The connection string uses <code>192.168.64.1</code>, not <code>127.0.0.1</code> —
+        it is dialled from <i>inside</i> the Exasol VM, so localhost would resolve to the VM
+        itself. This is the single most common first-attempt failure.
+      </div>
+    </div>
+  </li>
+
+  <li class="step">
+    <div class="step-head">
+      <span class="stepno">05</span>
+      <h3>The question neither database can answer alone</h3>
+      <span class="clock">9 min</span>
+    </div>
+    <div class="step-body">
+      <p class="say">“Which customer segment and loyalty tier generate the most revenue?
+        The segments live in MongoDB. The revenue lives in Exasol. Watch.”</p>
+
+      <div class="term"><span class="p">$</span> ./05_the_question.sh</div>
+      <div class="term">SELECT c.<span class="s">"customer_segment"</span>, l.<span class="s">"tier"</span>,
+       COUNT(DISTINCT c.<span class="s">"customer_id"</span>)        AS CUSTOMERS,
+       ROUND(SUM(o.REVENUE),0)                  AS REVENUE,
+       ROUND(SUM(o.REVENUE)/COUNT(DISTINCT c.<span class="s">"customer_id"</span>),0) AS REV_PER_CUSTOMER
+FROM RETAIL.ORDERS o                       <span class="c">-- Exasol, 2,500 rows</span>
+JOIN MONGO_RETAIL.<span class="s">"CUSTOMERS"</span> c          <span class="c">-- MongoDB, live</span>
+       ON c.<span class="s">"customer_id"</span> = o.CUSTOMER_ID
+JOIN MONGO_RETAIL.<span class="s">"CUSTOMERS_loyalty"</span> l  <span class="c">-- the embedded object</span>
+       ON l.<span class="s">"_id"</span> = c.<span class="s">"loyalty|object"</span>
+GROUP BY 1,2 ORDER BY REVENUE DESC;</div>
+
+      <div class="payoff">
+        <div class="payoff-head">Q1 — the answer that looks obvious</div>
+        <div class="payoff-body">
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Segment</th><th>Tier</th><th>Customers</th><th>Revenue</th><th>Per customer</th><th>Rating</th><th>Returns</th></tr></thead>
+              <tbody>
+                <tr><td>Premium</td><td>Gold</td><td class="num">100</td><td class="num">₹6,850,080</td><td class="num">₹68,501</td><td class="num">3.00</td><td class="num">14.4%</td></tr>
+                <tr><td>Growth</td><td>Silver</td><td class="num">94</td><td class="num">₹6,433,900</td><td class="num">₹68,446</td><td class="num">2.96</td><td class="num">14.4%</td></tr>
+                <tr><td>Standard</td><td>Bronze</td><td class="num">56</td><td class="num">₹3,824,825</td><td class="num">₹68,300</td><td class="num">3.07</td><td class="num">13.9%</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="verdict">Premium/Gold earns the most — but only because it holds the most
+            customers. Per customer the three tiers are within <b>0.3%</b>. Ratings and returns
+            don't follow either.</p>
+        </div>
+      </div>
+
+      <p class="say">“So the tiers are real in the CRM. Are they real in the money? Let's ask
+        the two systems the same question and put the answers side by side.”</p>
+
+      <div class="payoff">
+        <div class="payoff-head">Q2 — the payoff: the CRM contradicts the orders</div>
+        <div class="payoff-body">
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Segment</th><th>MongoDB says LTV</th><th>MongoDB says orders</th><th>Exasol says revenue</th><th>Exasol says orders</th></tr></thead>
+              <tbody>
+                <tr><td>Premium</td><td class="num">₹68,685</td><td class="num">19.2</td><td class="num">₹68,501</td><td class="num">10</td></tr>
+                <tr><td>Growth</td><td class="num">₹34,763</td><td class="num">19.6</td><td class="num">₹68,446</td><td class="num">10</td></tr>
+                <tr><td>Standard</td><td class="num">₹11,323</td><td class="num">19.8</td><td class="num">₹68,300</td><td class="num">10</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="verdict">The customer document claims a <b>6× value spread</b> and about 19
+            orders each. The order facts show a <b>0.3% spread</b> and exactly 10 orders each.
+            Neither system could have told you that alone — and this is the argument for joining
+            at query time, on live data, instead of copying one into the other and inheriting
+            its errors.</p>
+        </div>
+      </div>
+
+      <p class="say">“Last thing — did we just drag a collection across the wire? No.”</p>
+      <div class="outlabel">from EXPLAIN VIRTUAL</div>
+      <div class="term out">predicate handed to MongoDB:
+  <span class="s">"pushdown"</span>:{<span class="s">"prefilter"</span>:{<span class="s">"kind"</span>:<span class="s">"compare"</span>,<span class="s">"op"</span>:<span class="s">"equal"</span>,
+    <span class="s">"column"</span>:<span class="s">"customer_segment"</span>,<span class="s">"literal"</span>:{…<span class="s">"value"</span>:<span class="s">"Premium"</span>}}}
+credentials in the plan: NONE — only the connection name</div>
+      <p>Projection, filters, limits and top-N are pushed down; the plan names the connection,
+        never the password.</p>
+    </div>
+  </li>
+
+  <li class="step">
+    <div class="step-head">
+      <span class="stepno">06</span>
+      <h3>Six dashboards on the same join</h3>
+      <span class="clock">8 min</span>
+    </div>
+    <div class="step-body">
+      <p class="say">“One view <i>is</i> the join. Six audiences read it. Every tile you're
+        about to see is a live MongoDB query.”</p>
+
+      <div class="term"><span class="p">$</span> ./06_dashboard.sh
+<span class="c">ROWS_JOINED  CUSTOMERS  BOOKED     REALISED  LOST</span>
+2500         250        17108805   9808944   4880883</div>
+
+      <div class="boards">
+        <div class="board"><h4>retail-finance</h4><p>Booked vs realised vs lost revenue.</p></div>
+        <div class="board"><h4>retail-sales</h4><p>Store and channel performance.</p></div>
+        <div class="board"><h4>retail-product</h4><p>Category and product line value.</p></div>
+        <div class="board"><h4>retail-datascience</h4><p>Which customer features survive a control. None do.</p></div>
+        <div class="board"><h4>retail-inventory</h4><p>Reorder pressure — and what it cannot tell you.</p></div>
+        <div class="board"><h4>retail-delivery</h4><p>Order pipeline and delivery tiers.</p></div>
+      </div>
+
+      <p>Open <code>http://127.0.0.1:5100/</code> and land on <b>retail-datascience</b> — it
+        headlines the same contradiction the SQL just showed, which closes the loop from
+        query to product.</p>
+
+      <div class="note">
+        <span class="tag">Why a view, not the virtual schema directly</span>
+        dash-server reads as <code>mcp_readonly</code>, which has no rights on a virtual schema
+        you just created. The join lives in <code>RETAIL.ORDERS_ENRICHED</code>, a view in a
+        normal schema, granted to that user. Nothing is materialised.
+      </div>
+    </div>
+  </li>
+</ol>
+
+<h2 class="sec">If something breaks</h2>
+<div class="tablewrap">
+  <table>
+    <thead><tr><th>Symptom</th><th>Cause</th><th>Fix, live</th></tr></thead>
+    <tbody>
+      <tr><td>Connection fails on <code>CREATE VIRTUAL SCHEMA</code></td>
+          <td>SSH port changed after a restart, or the gateway address</td>
+          <td>Re-run <code>./00_preflight.sh</code>; confirm <code>HOST_GATEWAY</code> is <code>192.168.64.1</code></td></tr>
+      <tr><td>Mongo container exits immediately</td>
+          <td>Image is <code>8.0</code> / <code>latest</code> on kernel ≥ 6.19</td>
+          <td><code>MONGO_IMAGE=mongo:8.2 ./02_load_mongodb.sh</code></td></tr>
+      <tr><td>Every filter matches nothing</td>
+          <td>CRLF in the CSV</td>
+          <td>Already handled in step 3 — mention it, don't debug it</td></tr>
+      <tr><td>Dashboard page 500s but MCP answers</td>
+          <td>Stale dash-server process</td>
+          <td><code>exakit stop &amp;&amp; exakit start</code></td></tr>
+      <tr><td>Board shows no rows</td>
+          <td>View missing or grant lost</td>
+          <td>Re-run <code>./06_dashboard.sh</code> — it recreates and re-grants</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 class="sec">Honesty notes — say these before someone else does</h2>
+<p>Both datasets are generated, and the generator shows through. Naming it costs
+  30 seconds and buys the room's trust for everything else.</p>
+<div class="tablewrap">
+  <table>
+    <thead><tr><th>Artifact</th><th>What it looks like</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td>Trend chart</td><td>8.1× revenue growth Jan → Oct</td><td>Four months only, 625 lines each, quantity fixed at 1/2/3/4 per month</td></tr>
+      <tr><td>Customer city</td><td>2.9× swing in line value</td><td>Each product sits in exactly one city band — city is a proxy for product</td></tr>
+      <tr><td><code>RATING</code></td><td>a satisfaction score</td><td>A one-to-one restatement of <code>DISCOUNT_PCT</code>: 0%→1★ … 20%→5★</td></tr>
+      <tr><td>Gross margin</td><td>a mix lever</td><td>Fixed 45.0% of revenue on every single line</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>All four are already written into the boards as cards and into their “what this can't
+  answer” panels, so the dashboards say it for you.</p>
+
+<h2 class="sec">Reset between runs</h2>
+<div class="term"><span class="p">$</span> ./99_reset.sh   <span class="c"># drops the virtual schema, RETAIL, the connection, the collection</span>
+                <span class="c"># keeps the Rust SLC, the adapter, the .so and the dashboards</span></div>
+<p>A second run then starts at step 2 and takes about twelve minutes.</p>
+
+<footer>
+  Run-sheet for <code>~/meetup-virtual-schema</code> · Exasol Personal on macOS ·
+  MongoDB Virtual Schema v0.1 · Rust SLC 0.23.0 · every figure on this page was produced
+  by the scripts it documents.
+</footer>
+
+</div>
+</body>
+</html>
