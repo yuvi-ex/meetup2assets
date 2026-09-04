@@ -8,6 +8,34 @@
 source "$(dirname "$0")/lib/common.sh"
 ML="$(dirname "$0")/ml"
 
+# Two prerequisites that are NOT part of this script's story but stop it dead.
+# Both were hit on 2026-09-03 running step 7 on its own; run_all.sh happens to
+# satisfy the second because it runs 02b first.
+say "7pre. Prerequisites"
+# Step 6 leaves ~18 of the 20 licensed connections parked as idle dash-server
+# sessions, which starves everything below. Reclaim them first.
+free_connections
+# a) The PYTHON3 script-language container. SCRIPT_LANGUAGES advertises
+#    PYTHON3=builtin_python3 whether or not a container exists, so every Python
+#    UDF fails with "No usable script language container is installed" while the
+#    alias looks perfectly healthy. `exasol slc list` is the only honest check.
+if exasol slc list --deployment-dir "$DEPLOY_DIR" 2>/dev/null \
+     | awk '/^python-3/ {print $NF}' | grep -qx yes; then
+  ok "PYTHON3 SLC already installed"
+else
+  warn "installing the PYTHON3 SLC — THIS RESTARTS THE DATABASE (~90s)"
+  warn "connections drop, the ssh port changes, dashboards error until it is back"
+  # --auto-approve: the confirm prompt needs a TTY and an agent console has none,
+  # so without it the installer exits 0 having done nothing ("Aborted; no changes
+  # were made"). Note the flavor name is rejected: the alias PYTHON3 is required.
+  exasol slc install PYTHON3 --auto-approve --deployment-dir "$DEPLOY_DIR"
+  ok "PYTHON3 registered — ssh port is now $(ssh_port)"
+fi
+# b) The superstore virtual schema. Every query below reads MONGO_SUPERSTORE.
+xsql -c "SELECT SCHEMA_NAME FROM EXA_ALL_VIRTUAL_SCHEMAS;" | grep -q MONGO_SUPERSTORE \
+  && ok "MONGO_SUPERSTORE present" \
+  || die "MONGO_SUPERSTORE missing — run ./02b_load_superstore.sh first"
+
 say "7a. What the database already has (nothing was installed for this)"
 xsql -c "
 CREATE SCHEMA IF NOT EXISTS ML;
@@ -68,10 +96,91 @@ ok "granted to mcp_readonly so the AI can discover and call it"
 say "7h. Score 51,290 MongoDB documents from SQL"
 xsql -f "$(dirname "$0")/sql/score_check.sql" | xtable
 
+# --- THE LOGIC ---------------------------------------------------------------
+# Everything above BUILDS the thing. 7i-7l explain it, because "the model runs
+# in the database" is the claim people actually want to see justified.
+
+say "7i. Where the model lives — it is a FILE the database can read"
+node_ssh 'ls -l /var/lib/exa/bucketfs/bfsdefault/ml/' | sed 's/^/    /'
+ok "UDFs reach it at /buckets/bfsdefault/ml/loss_model.pkl — no service, no network"
+
+say "7j. A SCALAR twin, so the model call fits in an ordinary SELECT"
+# ML.PREDICT_LOSS is a SET script: Exasol forbids any other column in a SELECT
+# that calls an EMITS script, so every call needs a CTE and a join back. Correct
+# for scoring 51,290 rows, useless for SHOWING the idea. Same pickle, same
+# features, same answer — only the call shape differs.
+xsql -f "$(dirname "$0")/sql/loss_score_scalar.sql" >/dev/null
+ok "ML.LOSS_SCORE created (SCALAR ... RETURNS DOUBLE)"
+xsql -c "
+SELECT o.\"order_id\"          AS ORDER_ID,
+       o.\"sub_category\"      AS SUB_CATEGORY,
+       ROUND(o.\"discount\",2) AS DISCOUNT,
+       ROUND(o.\"profit\",0)   AS ACTUAL_PROFIT,
+       ROUND(ML.LOSS_SCORE(o.\"discount\", o.\"quantity\", o.\"sales\",
+             o.\"shipping_cost\", o.\"category\", o.\"sub_category\",
+             o.\"market\", o.\"region\", o.\"ship_mode\",
+             o.\"segment\"), 4) AS LOSS_RISK
+FROM MONGO_SUPERSTORE.\"ORDERS\" o
+WHERE o.\"category\" = 'Furniture' AND o.\"market\" = 'EU'
+ORDER BY LOSS_RISK DESC LIMIT 5;" | xtable
+ok "a prediction and the actual outcome side by side — on MongoDB documents"
+
+say "7k. Wrap the batched call in a VIEW, and the model disappears"
+xsql -c "
+CREATE OR REPLACE VIEW ML.SCORED_LINES AS
+WITH scored AS (
+  SELECT ORDER_ID AS ROW_KEY, LOSS_PROB FROM (
+    SELECT ML.PREDICT_LOSS(TO_CHAR(s.\"row_id\"), s.\"discount\", s.\"quantity\",
+             s.\"sales\", s.\"shipping_cost\", s.\"category\", s.\"sub_category\",
+             s.\"market\", s.\"region\", s.\"ship_mode\", s.\"segment\")
+    FROM MONGO_SUPERSTORE.\"ORDERS\" s)
+)
+SELECT o.\"order_id\" AS ORDER_ID, o.\"category\" AS CATEGORY,
+       o.\"sub_category\" AS SUB_CATEGORY, o.\"market\" AS MARKET,
+       o.\"region\" AS REGION, o.\"discount\" AS DISCOUNT,
+       o.\"sales\" AS SALES, o.\"profit\" AS PROFIT,
+       sc.LOSS_PROB AS LOSS_RISK
+FROM scored sc JOIN MONGO_SUPERSTORE.\"ORDERS\" o
+  ON TO_CHAR(o.\"row_id\") = sc.ROW_KEY;" >/dev/null
+xsql -c "GRANT SELECT ON SCHEMA ML TO mcp_readonly;" >/dev/null
+ok "ML.SCORED_LINES created"
+# A plain GROUP BY. Nothing in this query mentions a model.
+xsql -c "
+SELECT MARKET, COUNT(*) AS LINES_N,
+       ROUND(100*AVG(CASE WHEN LOSS_RISK >= 0.9 THEN 1 ELSE 0 END),1) AS PCT_FLAGGED,
+       ROUND(SUM(CASE WHEN LOSS_RISK >= 0.9 THEN PROFIT ELSE 0 END),0) AS FLAGGED_PROFIT
+FROM ML.SCORED_LINES
+GROUP BY 1 ORDER BY PCT_FLAGGED DESC;" | xtable
+ok "anything that speaks SQL now reaches the model — BI tool, dashboard, or AI"
+
+say "7l. The catalog knows both shapes, and can show you the source"
+xsql -c "SELECT SCRIPT_NAME, SCRIPT_INPUT_TYPE AS CALL_SHAPE,
+                SCRIPT_RESULT_TYPE AS RESULT_SHAPE
+         FROM EXA_ALL_SCRIPTS WHERE SCRIPT_SCHEMA = 'ML' ORDER BY 1;" | xtable
+echo "    SCRIPT_TEXT holds the source of any of them — that IS the model server:"
+echo "      SELECT SCRIPT_TEXT FROM EXA_ALL_SCRIPTS WHERE SCRIPT_NAME = 'LOSS_SCORE';"
+warn "RETURNS is a reserved word — 'AS RETURNS' as a column alias fails"
+
+cat <<'LOGIC'
+
+    THE LOGIC, in one paragraph. sklearn wrote a pickle. The pickle sits in
+    BucketFS, which every node mounts as a local path. A UDF names that path and
+    loads it ONCE per virtual machine, not once per row. Exasol then treats that
+    UDF as a function, so the model is reachable by anything that can write SQL.
+    The model never moves and the data never leaves.
+
+    Two call shapes, chosen by intent:
+      SCALAR ... RETURNS DOUBLE   reads like a built-in; use it to SHOW the idea
+      SET    ... EMITS (...)      batches a dataframe; use it to SCORE at volume
+
+    To port this to another model: change the feature list in the UDF and the
+    path to the pickle. Nothing else here is specific to loss prediction.
+LOGIC
+
 cat <<'NOTE'
 
     Read the table as calibration, not accuracy: the band the model calls safe
-    lost money on 0.1% of lines; the band it flags lost money on 99.6%.
+    lost money on 0.1% of lines; the band it flags lost money on 99.5%.
 
     NOW HAND IT TO THE AI. In Claude Code or Claude Desktop, with the exasol
     MCP server connected, type these in plain English -- no SQL:

@@ -31,7 +31,7 @@ the room reads your replies on a projector. Optimise for that.
 | "create the virtual schema" | `./04_create_virtual_schema.sh` | One collection → four tables; explain `x\|object` and `x\|array` |
 | "ask the question", "join them" | `./05_the_question.sh` | Per-customer revenue is flat 0.3%; the CRM's LTV contradicts the orders |
 | "build the dashboards" | `./06_dashboard.sh` | Six boards, all GO, give the URLs |
-| "train the model", "show the UDF" | `./07_ml_udf.sh` | ROC AUC 0.9809; the calibration table (0.1% vs 99.6%) |
+| "train the model", "show the UDF" | `./07_ml_udf.sh` | ROC AUC 0.9798; the calibration table (0.1% vs 99.5%) |
 
 ## After step 7 — the AI finale
 
@@ -54,11 +54,33 @@ ORDER BY "LOSS_PROB" DESC
 A UDF that emits columns cannot have other columns in the same SELECT list — wrap it in a
 subquery, always.
 
+**Prefer `ML.LOSS_SCORE` when the SQL itself is the point.** It is a SCALAR twin over the
+same pickle — same features, same answer — so it drops into a SELECT list beside any other
+column and needs no subquery. Use it for "show me the riskiest X" questions; use the SET
+script above only when scoring all 51,290 lines:
+
+```sql
+SELECT o."order_id", ROUND(o."profit", 0) AS "ACTUAL_PROFIT",
+       ROUND("ML"."LOSS_SCORE"(o."discount", o."quantity", o."sales", o."shipping_cost",
+             o."category", o."sub_category", o."market", o."region",
+             o."ship_mode", o."segment"), 4) AS "LOSS_RISK"
+FROM "MONGO_SUPERSTORE"."ORDERS" o
+WHERE o."market" = 'EU'
+ORDER BY "LOSS_RISK" DESC
+```
+
+`ML.SCORED_LINES` is a view over the batched call, for aggregate questions — a plain
+`GROUP BY` against it never mentions a model. `RETURNS` is a reserved word, so never alias
+a column `AS RETURNS`.
+
 ## Facts you may state (all verified — do not recompute live)
 
 - Superstore: 51,290 lines, 24.5% lose money, −$920,646 total.
-- Model: ROC AUC 0.9809, average precision 0.9470. Band <0.10 → 0.1% actually lost money;
-  band ≥0.90 → 99.6%, holding −$656,277 (71% of all losses in 13.6% of lines).
+- Model: ROC AUC 0.9798, average precision 0.9440. Band <0.10 → 0.1% actually lost money;
+  band ≥0.90 → 99.5%, holding −$651,839 (71% of all losses in 13.6% of lines).
+  These are REPRODUCIBLE as of 2026-09-04: `ml/export_training_data.sql` now sorts on
+  "row_id". Before that the unordered virtual-schema scan reshuffled the train/test
+  split every run and the metric wandered (0.9792 / 0.9796 / 0.9802).
 - Retail join: ₹17.1M booked, ₹9.8M realised, ₹4.9M lost.
 - Segment/tier revenue per customer: ₹68,501 / ₹68,446 / ₹68,300 — a 0.3% spread.
 - MongoDB says 6× LTV spread and ~19 orders each; Exasol says 0.3% and exactly 10.

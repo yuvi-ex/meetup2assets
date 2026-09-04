@@ -7,4 +7,4 @@ for s in 00_preflight 01_install_vs 02_load_mongodb 02b_load_superstore 03_load_
          04_create_virtual_schema 05_the_question 06_dashboard 07_ml_udf; do
   "$HERE/$s.sh"
 done
-printf '\n\033[1;32mALL SIX STEPS DONE — open http://127.0.0.1:5100/\033[0m\n'
+printf '\n\033[1;32mALL STEPS DONE — open http://127.0.0.1:5100/\033[0m\n'

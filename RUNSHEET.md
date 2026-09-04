@@ -286,7 +286,7 @@ placed — no profit, no cost, no margin.
          51,290 order lines · 24.5% of them lost money
     2/5  splitting 75 / 25, stratified on the target
     3/5  fitting  one-hot -> gradient boosting
-    4/5  ROC AUC 0.9809   average precision 0.9470   base rate 0.2446
+    4/5  ROC AUC 0.9798   average precision 0.9440   base rate 0.2446
     5/5  loss_model.pkl + loss_model.meta.json written
 
 **WILL BITE YOU.** Train in the pinned container, never on the host. The local venv has
@@ -306,10 +306,10 @@ at module scope, and each call scores a whole DataFrame — not one row at a tim
 | below 0.10        | 31,939 |            **0.1%** | 7,802,574|     -919 |
 | 0.10-0.49         |  8,054 |               27.4% | 2,901,052|  -63,592 |
 | 0.50-0.89         |  4,307 |               77.6% |   978,972| -199,858 |
-| **flagged >=0.90**|  6,990 |           **99.6%** |   959,903| -656,277 |
+| **flagged >=0.90**|  6,976 |           **99.5%** |   942,738| -651,839 |
 
 Read it as calibration, not accuracy: the band the model calls safe lost money on 0.1% of lines;
-the band it flags lost money on 99.6%. 13.6% of lines carry 71% of all losses.
+the band it flags lost money on 99.5%. 13.6% of lines carry 71% of all losses.
 
 ### Then hand it to the AI
 

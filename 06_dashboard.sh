@@ -5,6 +5,7 @@ RECIPES="$HOME/exasol-recipes"
 VENV="$HOME/dash-server/.venv/bin/python3"
 BOARDS="${BOARDS:-retail-finance retail-sales retail-product retail-datascience retail-inventory retail-delivery}"
 
+free_connections   # a previous 06 run parks ~3 idle connections per board
 say "6a. One view that IS the join"
 # dash-server reads as mcp_readonly, which has no rights on a virtual schema you
 # just created — so the join lives in a view in a normal schema, granted to it.
