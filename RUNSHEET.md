@@ -138,50 +138,61 @@ INSIDE the Exasol VM, so localhost would resolve to the VM itself. Most common f
 
 ## 05 — The question neither database can answer alone  (9 min)
 
-> "Which customer segment and loyalty tier generate the most revenue? The segments live in
-> MongoDB. The revenue lives in Exasol. Watch."
+> "Show me our Premium/Gold customers — who they are AND what they bought. The names and tiers
+> live in MongoDB. The transactions live in Exasol. Watch."
 
     ./05_the_question.sh
 
-    SELECT c."customer_segment", l."tier",
-           COUNT(DISTINCT c."customer_id")        AS CUSTOMERS,
-           ROUND(SUM(o.REVENUE),0)                AS REVENUE,
-           ROUND(SUM(o.REVENUE)/COUNT(DISTINCT c."customer_id"),0) AS REV_PER_CUSTOMER
-    FROM RETAIL.ORDERS o                       -- Exasol, 2,500 rows
-    JOIN MONGO_RETAIL."CUSTOMERS" c            -- MongoDB, live
-           ON c."customer_id" = o.CUSTOMER_ID
-    JOIN MONGO_RETAIL."CUSTOMERS_loyalty" l    -- the embedded object
-           ON l."_id" = c."loyalty|object"
-    GROUP BY 1,2 ORDER BY REVENUE DESC;
+Every column is aliased `MONGO_*` or `EXASOL_*`. The presenter cannot point at the screen
+mid-sentence, so the column name has to say which engine the value came from. Do not tidy the
+prefixes away.
 
-### Q1 — the answer that looks obvious
+### Q1 — transactions and customer details, side by side
 
-| Segment  | Tier   | Customers |    Revenue | Per customer | Rating | Returns |
-|----------|--------|----------:|-----------:|-------------:|-------:|--------:|
-| Premium  | Gold   |       100 | Rs6,850,080 |     Rs68,501 |   3.00 |   14.4% |
-| Growth   | Silver |        94 | Rs6,433,900 |     Rs68,446 |   2.96 |   14.4% |
-| Standard | Bronze |        56 | Rs3,824,825 |     Rs68,300 |   3.07 |   13.9% |
+    WHERE c."customer_segment" = 'Premium' AND l."tier" = 'Gold'   -- MongoDB fields
+    ORDER BY o.REVENUE DESC                                        -- an Exasol field
 
-Premium/Gold earns the most — but only because it holds the most customers. Per customer the
-three tiers are within **0.3%**. Ratings and returns don't follow either.
+| EXASOL_ORDER_ID | EXASOL_ORDER_DATE | EXASOL_PRODUCT | EXASOL_REVENUE | MONGO_NAME | MONGO_TIER | MONGO_CITY |
+|-----------------|-------------------|----------------|---------------:|------------|------------|------------|
+| O001575 | 2025-10-10 | Office Chair | 35,996.00 | Kavya Taylor | Gold | Hyderabad |
+| O000855 | 2025-10-19 | Office Chair | 35,996.00 | Lucas Rao    | Gold | Hyderabad |
+| O001255 | 2025-10-08 | Office Chair | 35,996.00 | Kavya Taylor | Gold | Hyderabad |
 
-> "So the tiers are real in the CRM. Are they real in the money? Let's ask the two systems the
-> same question and put the answers side by side."
+The name, tier and city were never loaded into Exasol — they were fetched from MongoDB while the
+query ran. Honest caveat, say it first: the top rows repeat one product at one price because this
+retail set is generated. The mechanism is real; the product mix is not.
 
 ### Q2 — the payoff: the CRM contradicts the orders
 
-| Segment  | MongoDB says LTV | MongoDB says orders | Exasol says revenue | Exasol says orders |
-|----------|-----------------:|--------------------:|--------------------:|-------------------:|
-| Premium  |         Rs68,685 |                19.2 |            Rs68,501 |                 10 |
-| Growth   |         Rs34,763 |                19.6 |            Rs68,446 |                 10 |
-| Standard |         Rs11,323 |                19.8 |            Rs68,300 |                 10 |
+| MONGO_ID | MONGO_NAME | MONGO_CITY | MONGO_TIER | MONGO_CRM_LTV | EXASOL_ORDERS | EXASOL_SPEND |
+|----------|------------|------------|------------|--------------:|--------------:|-------------:|
+| C0236 | Lucas Rao    | Hyderabad | Bronze | 19,528 | 10 | 128,970 |
+| C0126 | Kavya Taylor | Hyderabad | Gold   | 68,498 | 10 | 128,970 |
+| C0016 | Lucas Rao    | Hyderabad | Silver | 32,468 | 10 | 128,970 |
+| C0156 | Lucas Rao    | Hyderabad | Silver | 39,688 | 10 | 127,770 |
+| C0046 | Kavya Taylor | Hyderabad | Bronze |  3,658 | 10 | 127,770 |
 
-The customer document claims a **6x value spread** and ~19 orders each. The order facts show a
-**0.3% spread** and exactly 10 orders each. Neither system could have told you that alone — and
-that is the argument for joining at query time on live data, instead of copying one into the
-other and inheriting its errors.
+The top three spent **identically — Rs128,970 each** — and the CRM files them as Bronze, Gold and
+Silver, worth Rs19,528 / Rs68,498 / Rs32,468. C0046 is the 5th-best customer in the business and
+the CRM values him at **Rs3,658**, the lowest number on the page. Tier is assigned in MongoDB,
+money is counted in Exasol, and nothing had ever compared the two.
 
-### Q3 — nothing was copied
+### Q3 — which city and category earn the money
+
+| MONGO_CITY | MONGO_REGION | EXASOL_CATEGORY | EXASOL_ORDERS | EXASOL_REVENUE | EXASOL_AVG_DISCOUNT |
+|------------|--------------|-----------------|--------------:|---------------:|--------------------:|
+| Hyderabad | South | Office | 63 | 1,307,748 |  0 |
+| Ahmedabad | West  | Office | 62 | 1,236,664 |  5 |
+| Kochi     | South | Office | 63 | 1,203,973 | 10 |
+| Chennai   | South | Office | 62 | 1,106,489 | 15 |
+| Pune      | West  | Office | 62 | 1,041,402 | 20 |
+
+City is nested inside the MongoDB document; category and revenue are Exasol columns. Order counts
+are flat at 62-64, so the whole revenue gap is discount. **Say this before the room does:** the
+discount column is a perfect 0/5/10/15/20 ladder because this set is generated and discount was
+assigned by city. The genuine discount->loss signal is in the Superstore data step 7 trains on.
+
+### Q4 — nothing was copied  (optional closer)
 
     predicate handed to MongoDB:
       "pushdown":{"prefilter":{"kind":"compare","op":"equal",
@@ -189,7 +200,8 @@ other and inheriting its errors.
     credentials in the plan: NONE — only the connection name
 
 Projection, filters, limits and top-N are pushed down; the plan names the connection, never the
-password.
+password. Skip it if the room is already convinced — but it is the answer to the one hostile
+question a virtual schema always attracts.
 
 ---
 

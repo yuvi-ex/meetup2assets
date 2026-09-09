@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# STEP 3 — Exasol side: 2,500 order lines as an ordinary relational table.
+# STEP 3 — Exasol side: 2,500 TRANSACTIONS as an ordinary relational table.
+# Narration: MongoDB holds who the customers are, Exasol holds what they did.
+# The table is called RETAIL.ORDERS; say "transactions" out loud, because in
+# Act 2 (steps 6-7) the ORDERS that matter live in MongoDB instead.
 source "$(dirname "$0")/lib/common.sh"
 
 say "3a. Normalise the CSV"
@@ -37,4 +40,4 @@ xsql -c "SELECT COUNT(*) AS ROWS_LOADED, COUNT(DISTINCT CUSTOMER_ID) AS CUSTOMER
                 COUNT(DELIVERY_DAYS) AS DELIVERY_DAYS_PRESENT
          FROM RETAIL.ORDERS;" | xtable
 
-say "STEP 3 DONE — facts in Exasol, customers in MongoDB, nothing copied between them"
+say "STEP 3 DONE — transactions in Exasol, customers in MongoDB, nothing copied"

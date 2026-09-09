@@ -22,16 +22,44 @@ the room reads your replies on a projector. Optimise for that.
 
 ## The steps, and what each proves
 
-| Ask sounds like | Run | Say afterwards |
+**The presenter types the SHORT NAME in the left column — nothing else.** Treat any of
+these bare words as "run that step now". They are also real symlinks in this folder, so
+`./install_vs` works in a shell too, but the presenter will not be typing a shell.
+
+| Presenter types | Run | Say afterwards |
 |---|---|---|
-| "check we're ready", "preflight" | `./00_preflight.sh` | Which checks passed; flag anything amber |
-| "install the virtual schema" | `./01_install_vs.sh` | The two scripts created, and that Rust is not in `exasol slc list` |
-| "load the customers into mongo" | `./02_load_mongodb.sh` | 250 documents, nested objects, nothing flattened |
-| "load the orders into exasol" | `./03_load_exasol.sh` | 2,500 rows, and that DELIVERY_DAYS is NULL on 714 by design |
-| "create the virtual schema" | `./04_create_virtual_schema.sh` | One collection → four tables; explain `x\|object` and `x\|array` |
-| "ask the question", "join them" | `./05_the_question.sh` | Per-customer revenue is flat 0.3%; the CRM's LTV contradicts the orders |
-| "build the dashboards" | `./06_dashboard.sh` | Six boards, all GO, give the URLs |
-| "train the model", "show the UDF" | `./07_ml_udf.sh` | ROC AUC 0.9798; the calibration table (0.1% vs 99.5%) |
+| `preflight` | `./00_preflight.sh` | Which checks passed; flag anything amber |
+| `install_vs` | `./01_install_vs.sh` | The two scripts created, and that Rust is not in `exasol slc list` |
+| `load_mongodb` | `./02_load_mongodb.sh` | 250 documents, nested objects, nothing flattened |
+| `load_superstore` | `./02b_load_superstore.sh` | 51,290 lines, 24.5% lose money, −$920,646 |
+| `load_exasol` | `./03_load_exasol.sh` | 2,500 transactions, and that DELIVERY_DAYS is NULL on 714 by design |
+| `create_virtual_schema` | `./04_create_virtual_schema.sh` | One collection → four tables; explain `x\|object` and `x\|array` |
+| `the_question` | `./05_the_question.sh` | Premium/Gold detail rows; top-10 spend vs the CRM's LTV; revenue by city and category |
+| `dashboard` | `./06_dashboard.sh` | Six boards, all GO, give the URLs |
+| `ml_udf` | `./07_ml_udf.sh` | ROC AUC 0.9798; the calibration table (0.1% vs 99.5%) |
+
+Plain English still works ("ask the question", "load the customers into mongo") and maps to
+the same rows. Never ask which script they meant when the short name is unambiguous — just run it.
+
+## Lead every reply with THE QUESTION
+
+**The presenter cannot see the terminal output — the room reads YOUR REPLY.** So the question
+each step answers must appear in your text, not only in the script's output. Open every step
+reply with the question as a bold heading and one line naming which engine holds which half,
+then the numbers as a table. `05_the_question.sh` prints these in the terminal too; restate
+them regardless.
+
+For `the_question`, the four headings are:
+1. **Show me the transactions and customer details for Premium / Gold** — the WHERE filters MongoDB fields, the ORDER BY sorts an Exasol one.
+2. **Who are our top 10 customers by real spend, and does the CRM agree?** — no: the top three spent an identical ₹128,970 and are filed Bronze / Gold / Silver.
+3. **Which city and category earn the money?** — order counts are flat 62–64; the entire gap is discount.
+4. **Did Exasol just copy MongoDB overnight?** — no: the filter is pushed down, no credentials in the plan. Optional closer.
+
+Every column in step 5 is aliased `MONGO_*` or `EXASOL_*` so the projector shows which
+engine each value came from. Keep the prefixes when you write ad-hoc SQL for the room.
+
+Say "transactions" for the Exasol side in Act 1 (steps 2–5). In Act 2 (steps 6–7) the order
+lines live in MongoDB instead — flag that switch out loud rather than letting the room notice it.
 
 ## After step 7 — the AI finale
 

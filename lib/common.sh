@@ -18,12 +18,24 @@ CUSTOMERS_JSON="${CUSTOMERS_JSON:-$KIT_ROOT/data/retail_customers.json}"
 ORDERS_CSV="${ORDERS_CSV:-$KIT_ROOT/data/retail_orders.csv}"
 SUPERSTORE_JSON_GZ="${SUPERSTORE_JSON_GZ:-$KIT_ROOT/data/StoreSales.json.gz}"
 
-WORK="${WORK:-$HOME/meetup-virtual-schema/.work}"
+WORK="${WORK:-$KIT_ROOT/.work}"
 mkdir -p "$WORK"
 
 say()  { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 ok()   { printf '    \033[0;32mok\033[0m  %s\n' "$*"; }
 warn() { printf '    \033[0;33m!!\033[0m  %s\n' "$*"; }
+# The business question, in English, before the SQL. The room reads this; the
+# SQL underneath is the proof, not the message. Feed it on stdin:
+#     ask <<'Q'
+#     Who are our most valuable customers?
+#     Q
+ask() {
+  # Reverse video, not a colour: it inverts whatever the terminal background is,
+  # so it stays readable on a light theme and on a washed-out projector.
+  printf '\n\033[7;1m  THE QUESTION                                                  \033[0m\n'
+  while IFS= read -r line; do printf '\033[7m \033[0m  \033[1m%s\033[0m\n' "$line"; done
+  printf '\033[7m \033[0m\n'
+}
 die()  { printf '\n\033[0;31merror: %s\033[0m\n' "$*" >&2; exit 1; }
 
 ssh_port() { jq -r '.connection.sshPort' "$DEPLOY_DIR/deployment.json"; }
