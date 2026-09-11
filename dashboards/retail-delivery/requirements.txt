@@ -1,0 +1,6 @@
+# Only the Ask panel needs a package beyond the dash-server runtime. Without it that
+# panel degrades to a clear message and nothing else changes.
+#
+# reportlab/openpyxl are deliberately NOT here: the PDF and Excel exports were
+# removed, so the code that imported them is gone too.
+anthropic>=0.40

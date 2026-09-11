@@ -14,17 +14,21 @@ serves six dashboards off that join, and runs a scikit-learn model inside the da
 > Full detail, verified figures and the other prerequisites:
 > **[SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md)**.
 >
-> Step 6 additionally needs `~/exasol-recipes`, which **nothing in this repo
-> installs** — see the same file.
+> **First run on a new machine?** Run `./00_preflight.sh` first — it stops at the
+> first real blocker and tells you the command that fixes it. Then
+> `./00b_prefetch.sh` the night before, so nothing is downloaded while the room
+> watches.
 
 **Run the steps from the Command Palette:** `Cmd+Shift+P` → *Tasks: Run Task* → pick a number.
 Or in the terminal: `./01_install_vs.sh` and so on.
 
 | Step | Script | What the room sees | Time |
 |---|---|---|---|
-| 0 | `00_preflight.sh` | Green checks, or the one thing that will break | — |
+| 0 | `00_preflight.sh` | Green checks, or **it stops** at the first blocker | — |
+| 0b | `00b_prefetch.sh` | Every download, cached. **Run the night before.** | 8 min |
 | 1 | `01_install_vs.sh` | Rust SLC → adapter built → BucketFS → 2 SQL scripts | 6 min |
 | 2 | `02_load_mongodb.sh` | 250 nested documents into MongoDB | 4 min |
+| 2b | `02b_load_superstore.sh` | 51,290 Superstore docs — **step 7 needs this** | 3 min |
 | 3 | `03_load_exasol.sh` | 2,500 order lines into a typed Exasol table | 3 min |
 | 4 | `04_create_virtual_schema.sh` | One collection becomes four SQL tables | 5 min |
 | 5 | `05_the_question.sh` | **The join. The CRM contradicts the orders.** | 9 min |

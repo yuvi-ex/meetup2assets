@@ -1,8 +1,22 @@
 #!/usr/bin/env bash
 # STEP 6 — the same join, as a dashboard people can click.
 source "$(dirname "$0")/lib/common.sh"
-RECIPES="$HOME/exasol-recipes"
-VENV="$HOME/dash-server/.venv/bin/python3"
+# VENDORED, not $HOME/exasol-recipes. That directory existed only on the author's
+# laptop -- nothing in this repo installed it, it was in no README, and step 6
+# aborted run_all.sh (set -euo pipefail) roughly 35 minutes into a fresh run.
+# The boards now ship with the repo, so there is nothing to install and nothing
+# to fetch while the room watches.
+RECIPES="$(cd "$(dirname "$0")/dashboards" && pwd)"
+
+# dash-server installs its venv in one of two places depending on how the add-on
+# was set up. Hardcoding either one is how this broke on a machine that was not
+# the author's.
+VENV=""
+for c in "$HOME/.exasol-starter-kit/dash-server-venv/bin/python3" \
+         "$HOME/dash-server/.venv/bin/python3"; do
+  [[ -x "$c" ]] && VENV="$c" && break
+done
+[[ -n "$VENV" ]] || die "no dash-server python found — run ./00_preflight.sh"
 BOARDS="${BOARDS:-retail-finance retail-sales retail-product retail-datascience retail-inventory retail-delivery}"
 
 free_connections   # a previous 06 run parks ~3 idle connections per board

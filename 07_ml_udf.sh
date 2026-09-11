@@ -76,11 +76,10 @@ ls -lh "$ML/loss_model.pkl" | awk '{print "    " $9 "   " $5}'
 cat "$ML/loss_model.meta.json" | sed 's/^/    /'
 
 say "7f. Put it in BucketFS"
-node_ssh 'mkdir -p /var/lib/exa/bucketfs/bfsdefault/ml'
-node_scp "$ML/loss_model.pkl" /var/lib/exa/bucketfs/bfsdefault/ml/loss_model.pkl
-node_scp "$ML/loss_model.meta.json" /var/lib/exa/bucketfs/bfsdefault/ml/loss_model.meta.json
+bucketfs_put "$ML/loss_model.pkl"       ml loss_model.pkl
+bucketfs_put "$ML/loss_model.meta.json" ml loss_model.meta.json
 sleep 3
-node_ssh 'ls -l /var/lib/exa/bucketfs/bfsdefault/ml/' | sed 's/^/    /'
+bucketfs_ls ml | sed 's/^/    /'
 ok "the UDF will read it at /buckets/bfsdefault/ml/loss_model.pkl"
 
 say "7g. Define the function"
@@ -101,7 +100,7 @@ xsql -f "$(dirname "$0")/sql/score_check.sql" | xtable
 # in the database" is the claim people actually want to see justified.
 
 say "7i. Where the model lives — it is a FILE the database can read"
-node_ssh 'ls -l /var/lib/exa/bucketfs/bfsdefault/ml/' | sed 's/^/    /'
+bucketfs_ls ml | sed 's/^/    /'
 ok "UDFs reach it at /buckets/bfsdefault/ml/loss_model.pkl — no service, no network"
 
 say "7j. A SCALAR twin, so the model call fits in an ordinary SELECT"

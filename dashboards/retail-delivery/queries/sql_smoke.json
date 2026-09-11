@@ -1,0 +1,33 @@
+{
+  "queries/business/filters.sql": {},
+  "queries/business/kpi.sql": {
+    "f0": "*",
+    "f1": "*",
+    "f2": "*",
+    "f3": "*"
+  },
+  "queries/business/trend.sql": {
+    "f0": "*",
+    "f1": "*",
+    "f2": "*",
+    "f3": "*"
+  },
+  "queries/business/cut_a.sql": {
+    "f0": "*",
+    "f1": "*",
+    "f2": "*",
+    "f3": "*"
+  },
+  "queries/business/cut_b.sql": {
+    "f0": "*",
+    "f1": "*",
+    "f2": "*",
+    "f3": "*"
+  },
+  "queries/business/detail.sql": {
+    "f0": "*",
+    "f1": "*",
+    "f2": "*",
+    "f3": "*"
+  }
+}

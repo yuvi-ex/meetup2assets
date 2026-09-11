@@ -93,23 +93,27 @@ that is Exasol's business, not yours.
 
 Use **`mongo:8.2` or newer**. `mongo:8.0` will not boot on a host kernel ≥ 6.19.
 
-## Separate prerequisite: `exasol-recipes`
+## Dashboards: vendored, no longer a prerequisite
 
-`06_dashboard.sh` reads `$HOME/exasol-recipes` and expects six boards there —
-`retail-finance`, `retail-sales`, `retail-product`, `retail-datascience`,
-`retail-inventory`, `retail-delivery` — plus `dryrun.py`, `ship.sh` and
-`preflight.py`.
+`06_dashboard.sh` used to read `$HOME/exasol-recipes` for six boards. That
+directory existed on one laptop, was published nowhere, and nothing in this repo
+installed it — so step 6 aborted `run_all.sh` (`set -euo pipefail`) around 35
+minutes into a fresh run.
 
-**Nothing in this repo installs it.** It is not cloned, not vendored and not
-mentioned in the README. On a machine that does not already have that directory,
-step 6 aborts and takes `run_all.sh` with it (`set -euo pipefail`).
+The six boards and the tooling they need now ship in **`dashboards/`**. Nothing
+to install, nothing fetched at demo time. `00_preflight.sh` checks the vendored
+copy is intact.
 
-It also needs `~/dash-server/.venv/bin/python3`, which is a different interpreter
-from the kit's own `~/.exasol-starter-kit/dash-server-venv/bin/python3`. Only one
-of the two exists on some installs.
+Step 6 still needs a dash-server Python, which lives in one of two places
+depending on how the add-on was installed:
 
-Until that is resolved, treat `exasol-recipes` as an undocumented prerequisite:
-step 6 works only where it is already present.
+```
+~/.exasol-starter-kit/dash-server-venv/bin/python3      # kit-managed
+~/dash-server/.venv/bin/python3                          # standalone
+```
+
+Both `06_dashboard.sh` and `dashboards/ship.sh` probe for either. Preflight
+blocks with the marketplace command if neither is present.
 
 ## What is NOT yet verified end-to-end
 
@@ -117,8 +121,12 @@ Stated plainly so nobody reads this file as a green light:
 
 - **The demo has not been run start-to-finish on the verified machine.** `RETAIL`
   does not exist there, and neither the RUST nor the PYTHON3 SLC is installed.
-  `00_preflight.sh` passes and the three known blockers are absent — that is not
-  the same as a completed run.
+  `00_preflight.sh` passes and `00b_prefetch.sh` completes — that is not the same
+  as a completed run.
+- **A clean-room check was done, not a clean machine.** `~/exasol-recipes` and the
+  cached clones were hidden and the flow re-run to prove nothing depends on
+  them. That catches missing dependencies; it does not catch anything that
+  needs a genuinely fresh OS.
 - **Nothing here is verified on the migrated `2.3.0-rc2` platform.** The table at
   the top is drawn from a bug report's evidence, not from a machine in hand.
 - **Whether UDFs still resolve `/buckets/bfsdefault/...` after the BucketFS move**

@@ -31,7 +31,7 @@ DROP CONNECTION IF EXISTS MONGODB_RETAIL;
 DROP CONNECTION IF EXISTS MONGODB_SUPERSTORE;" >/dev/null && ok "schemas and connections dropped"
 
 say "BucketFS"
-node_ssh 'rm -rf /var/lib/exa/bucketfs/bfsdefault/ml /var/lib/exa/bucketfs/bfsdefault/rust' \
+bucketfs_rm ml rust \
   && ok "adapter .so and model removed"
 
 say "MongoDB"

@@ -18,7 +18,7 @@ if xsql -c "SELECT SYSTEM_VALUE FROM EXA_PARAMETERS WHERE PARAMETER_NAME='SCRIPT
   ok "RUST already registered — skipping"
 else
   # exasol slc list only offers java/python/r. Rust comes from exasol-labs.
-  [[ -d "$SLC_REPO" ]] || git clone --quiet --depth 1 --branch "v$SLC_VERSION" \
+  [[ -d "$SLC_REPO" ]] || git -c advice.detachedHead=false clone --quiet --depth 1 --branch "v$SLC_VERSION" \
       https://github.com/exasol-labs/language-container-rs.git "$SLC_REPO"
   TARBALL="$WORK/lc-rust-$SLC_VERSION$SLC_ARCH.tar.gz"
   [[ -f "$TARBALL" ]] || curl -sSL -o "$TARBALL" \
@@ -38,11 +38,12 @@ fi
 make -C "$VS_REPO" verify-so
 
 # BucketFS on Personal is a DIRECTORY the engine reconciles into a bucket in ~1s.
-# It starts empty, so mkdir first or scp dies with an opaque "dest open ... Failure".
-node_ssh 'mkdir -p /var/lib/exa/bucketfs/bfsdefault/rust'
-node_scp "$SO" /var/lib/exa/bucketfs/bfsdefault/rust/libmongodb_vs.so
+# bucketfs_put handles the mkdir (the bucket starts empty, and scp otherwise dies
+# with an opaque "dest open ... Failure") AND picks the host-side copy or scp
+# depending on which deployment layout this machine has -- see lib/common.sh.
+bucketfs_put "$SO" rust libmongodb_vs.so
 sleep 3
-node_ssh 'ls -l /var/lib/exa/bucketfs/bfsdefault/rust/libmongodb_vs.so'
+bucketfs_ls rust
 ok "visible to UDFs at /buckets/bfsdefault/rust/libmongodb_vs.so"
 
 say "1c. Create the adapter and scan scripts"

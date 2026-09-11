@@ -38,14 +38,164 @@ ask() {
 }
 die()  { printf '\n\033[0;31merror: %s\033[0m\n' "$*" >&2; exit 1; }
 
-ssh_port() { jq -r '.connection.sshPort' "$DEPLOY_DIR/deployment.json"; }
+# --- reaching the database node ---------------------------------------------
+#
+# TWO LAYOUTS EXIST AND THEY NEED DIFFERENT ANSWERS. Exasol Personal 2.2.0 and
+# deployments migrated to 2.3.0-rc2+ disagree about all three of the key, the
+# address and where BucketFS lives, so every function below DETECTS rather than
+# assumes. Hardcoding either one is what broke this kit on a machine that was
+# not the author's:
+#
+#                 2.2.0                          migrated 2.3.0-rc2+
+#   ssh port      deployment.json .connection.sshPort    absent -> 22
+#   ssh host      127.0.0.1                      vm_ip from vm-runtime.json
+#   ssh key       local/node_access.pem          local/runtime/vm-ssh-key
+#   BucketFS      /var/lib/exa/bucketfs, on the  /mnt/host/exa/bucketfs, a
+#                 VM's OWN DISK (/dev/vda) --    virtiofs share ALSO visible on
+#                 reachable ONLY over ssh        the Mac, so no ssh needed
+#
+# Note the asymmetry in that last row: on 2.2.0 there is NO host-side directory
+# to copy into, so "just use cp" is not a fix, it only moves the breakage.
+#
+# Every value is cached on first use -- these are called in loops and each one
+# otherwise shells out to jq.
+
+_NODE_PORT=""; _NODE_HOST=""; _NODE_KEY=""; _BFS_HOST_DIR=""; _NODE_PROBED=""
+
+ssh_port() {
+  if [[ -z "$_NODE_PORT" ]]; then
+    # deployment.json first (2.2.0), then vm-state.json, which carries the same
+    # port under a different name and survives on more layouts than either.
+    _NODE_PORT="$(jq -r '.connection.sshPort // empty' \
+                    "$DEPLOY_DIR/deployment.json" 2>/dev/null || true)"
+    [[ -z "$_NODE_PORT" || "$_NODE_PORT" == "null" ]] && \
+      _NODE_PORT="$(jq -r '.ports.ssh // empty' \
+                      "$DEPLOY_DIR/local/runtime/vm-state.json" 2>/dev/null || true)"
+    # Neither present means the migrated layout, which talks to the VM on 22.
+    [[ -z "$_NODE_PORT" || "$_NODE_PORT" == "null" ]] && _NODE_PORT="22"
+  fi
+  printf '%s' "$_NODE_PORT"
+}
+
+ssh_host() {
+  if [[ -z "$_NODE_HOST" ]]; then
+    # A forwarded port means loopback. Port 22 means we dial the VM directly, so
+    # we need its address -- vm-runtime.json on the migrated layout, vm-state.json
+    # on 2.2.0.
+    if [[ "$(ssh_port)" == "22" ]]; then
+      for f in "$DEPLOY_DIR/local/runtime/vm-runtime.json" \
+               "$DEPLOY_DIR/local/runtime/vm-state.json"; do
+        [[ -f "$f" ]] || continue
+        _NODE_HOST="$(jq -r '.vm_ip // empty' "$f" 2>/dev/null || true)"
+        [[ -n "$_NODE_HOST" && "$_NODE_HOST" != "null" ]] && break
+      done
+    fi
+    [[ -z "$_NODE_HOST" || "$_NODE_HOST" == "null" ]] && _NODE_HOST="127.0.0.1"
+  fi
+  printf '%s' "$_NODE_HOST"
+}
+
+ssh_key() {
+  if [[ -z "$_NODE_KEY" ]]; then
+    # vm-state.json names the key outright on 2.2.0; otherwise take whichever
+    # file is actually present rather than guessing by version number.
+    _NODE_KEY="$(jq -r '.ssh_private_key // empty' \
+                   "$DEPLOY_DIR/local/runtime/vm-state.json" 2>/dev/null || true)"
+    if [[ -z "$_NODE_KEY" || "$_NODE_KEY" == "null" || ! -f "$_NODE_KEY" ]]; then
+      for k in "$DEPLOY_DIR/local/node_access.pem" \
+               "$DEPLOY_DIR/local/runtime/vm-ssh-key"; do
+        [[ -f "$k" ]] && _NODE_KEY="$k" && break
+      done
+    fi
+  fi
+  printf '%s' "$_NODE_KEY"
+}
+
+_SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+           -o LogLevel=ERROR -o ConnectTimeout=10)
+
 node_ssh() {
-  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \
-      -i "$DEPLOY_DIR/local/node_access.pem" -p "$(ssh_port)" root@127.0.0.1 "$@"
+  ssh "${_SSH_OPTS[@]}" -i "$(ssh_key)" -p "$(ssh_port)" \
+      "root@$(ssh_host)" "$@"
 }
 node_scp() {
-  scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \
-      -i "$DEPLOY_DIR/local/node_access.pem" -P "$(ssh_port)" "$1" "root@127.0.0.1:$2"
+  scp "${_SSH_OPTS[@]}" -i "$(ssh_key)" -P "$(ssh_port)" \
+      "$1" "root@$(ssh_host):$2"
+}
+
+# Does ssh to the node actually work? Returns 0/1 and caches, so preflight can
+# VALIDATE the connection instead of printing a port and hoping. BatchMode keeps
+# it from hanging on a passphrase prompt.
+node_reachable() {
+  if [[ -z "$_NODE_PROBED" ]]; then
+    if ssh "${_SSH_OPTS[@]}" -o BatchMode=yes -i "$(ssh_key)" -p "$(ssh_port)" \
+           "root@$(ssh_host)" true >/dev/null 2>&1; then
+      _NODE_PROBED=yes
+    else
+      _NODE_PROBED=no
+    fi
+  fi
+  [[ "$_NODE_PROBED" == "yes" ]]
+}
+
+# --- BucketFS ----------------------------------------------------------------
+# If the deployment exposes BucketFS on the host (migrated layout), use it: a
+# plain cp needs no ssh at all. Otherwise fall back to scp, which is the ONLY
+# route on 2.2.0. bucketfs_put/rm hide the difference so no step script has to
+# care which machine it is on.
+
+bfs_host_dir() {
+  if [[ -z "$_BFS_HOST_DIR" ]]; then
+    for d in "$DEPLOY_DIR/local/runtime/exa/bucketfs" \
+             "$DEPLOY_DIR/local/runtime/exa/bucketfs/bfsdefault"; do
+      if [[ -d "$d" ]]; then
+        _BFS_HOST_DIR="${DEPLOY_DIR}/local/runtime/exa/bucketfs"
+        break
+      fi
+    done
+    [[ -z "$_BFS_HOST_DIR" ]] && _BFS_HOST_DIR="none"
+  fi
+  printf '%s' "$_BFS_HOST_DIR"
+}
+
+# Where BucketFS lives on the NODE. Only used on the ssh path.
+BFS_NODE_ROOT="${BFS_NODE_ROOT:-/var/lib/exa/bucketfs}"
+
+# bucketfs_put <local-file> <bucket> [dest-name]
+bucketfs_put() {
+  local src="$1" bucket="$2" name="${3:-$(basename "$1")}" hostdir
+  hostdir="$(bfs_host_dir)"
+  if [[ "$hostdir" != "none" ]]; then
+    mkdir -p "$hostdir/bfsdefault/$bucket"
+    cp "$src" "$hostdir/bfsdefault/$bucket/$name"
+  else
+    # The bucket dir starts empty and scp dies with an opaque
+    # "dest open ... Failure" if it does not exist, so mkdir first.
+    node_ssh "mkdir -p $BFS_NODE_ROOT/bfsdefault/$bucket"
+    node_scp "$src" "$BFS_NODE_ROOT/bfsdefault/$bucket/$name"
+  fi
+}
+
+# bucketfs_rm <bucket> [...]  -- removes whole buckets, used by the reset scripts
+bucketfs_rm() {
+  local hostdir b; hostdir="$(bfs_host_dir)"
+  for b in "$@"; do
+    if [[ "$hostdir" != "none" ]]; then
+      rm -rf "$hostdir/bfsdefault/$b"
+    else
+      node_ssh "rm -rf $BFS_NODE_ROOT/bfsdefault/$b"
+    fi
+  done
+}
+
+# bucketfs_ls <bucket>  -- for the "show the room it landed" lines
+bucketfs_ls() {
+  local hostdir; hostdir="$(bfs_host_dir)"
+  if [[ "$hostdir" != "none" ]]; then
+    ls -l "$hostdir/bfsdefault/$1" 2>/dev/null
+  else
+    node_ssh "ls -l $BFS_NODE_ROOT/bfsdefault/$1" 2>/dev/null
+  fi
 }
 # Exasol Personal is licensed for 20 PARALLEL CONNECTIONS, and dash-server opens
 # roughly three per board and leaves them IDLE forever. Six boards therefore park
