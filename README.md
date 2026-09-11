@@ -3,6 +3,20 @@
 Exasol queries MongoDB with no copy, joins it to a relational table in one SELECT,
 serves six dashboards off that join, and runs a scikit-learn model inside the database.
 
+> **Before you run anything, check your platform version.**
+> This kit works on Exasol Personal **2.2.0** and fails on deployments migrated
+> to **2.3.0-rc2** or later, which removed `.connection.sshPort` and moved
+> BucketFS. One command tells you which you are on:
+> ```sh
+> jq -r '.connection.sshPort // "ABSENT -- migrated, this kit will fail"' \
+>   "$HOME/.exasol/personal/deployments/default/deployment.json"
+> ```
+> Full detail, verified figures and the other prerequisites:
+> **[SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md)**.
+>
+> Step 6 additionally needs `~/exasol-recipes`, which **nothing in this repo
+> installs** — see the same file.
+
 **Run the steps from the Command Palette:** `Cmd+Shift+P` → *Tasks: Run Task* → pick a number.
 Or in the terminal: `./01_install_vs.sh` and so on.
 
