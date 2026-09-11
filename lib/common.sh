@@ -257,6 +257,38 @@ xsql() {
 }
 # Print a result set as an aligned table.
 xtable() { jq -r '.statements[] | select(.rows | length > 0) | (.columns|@tsv), (.rows[]|@tsv)' | column -t -s"$(printf '\t')"; }
+# Unregister a script language alias.
+#
+# `exasol slc remove RUST` DOES NOT WORK and never did: that subcommand only
+# knows the official catalog (java-17, python-3.12, r-4.4), and RUST is not in
+# it. The exasol-labs installer registers RUST with ALTER SYSTEM
+# SCRIPT_LANGUAGES=..., so removing it means rewriting that same parameter
+# without the alias. `exasol slc custom remove` does not exist either -- there is
+# no `custom` subcommand on 2.2.0.
+#
+# SCRIPT_LANGUAGES is one space-separated list of ALIAS=value tokens and ALTER
+# SYSTEM replaces the WHOLE value, so every other entry has to be carried over
+# or the built-in languages are silently unregistered too.
+unregister_script_language() {
+  local alias="$1" existing kept word
+  existing="$(xsql -c "SELECT SYSTEM_VALUE FROM EXA_PARAMETERS
+                        WHERE PARAMETER_NAME='SCRIPT_LANGUAGES';" \
+              | jq -r '.statements[0].rows[0][0] // empty')" || return 1
+  [[ -z "$existing" ]] && return 1
+  case "$existing" in
+    *"$alias="*) ;;
+    *) return 2 ;;   # not registered: nothing to do, and not an error
+  esac
+  kept=""
+  for word in $existing; do
+    case "$word" in
+      "$alias="*) continue ;;
+    esac
+    kept="${kept:+$kept }$word"
+  done
+  xsql -c "ALTER SYSTEM SET SCRIPT_LANGUAGES='$kept';" >/dev/null
+}
+
 mongo_root() {
   docker exec "$MONGO_CONTAINER" mongosh --quiet -u root -p "$MONGO_ROOT_PW" \
     --authenticationDatabase admin "$@"

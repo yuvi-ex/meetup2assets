@@ -34,7 +34,7 @@ Or in the terminal: `./01_install_vs.sh` and so on.
 | 5 | `05_the_question.sh` | **The join. The CRM contradicts the orders.** | 9 min |
 | 6 | `06_dashboard.sh` | Six persona dashboards on that join | 8 min |
 | 7 | `07_ml_udf.sh` | **train.py → .pkl → BucketFS → SQL → ask the AI** | 10 min |
-| — | `99_reset.sh` | Undo steps 2–6 | — |
+| — | `99_reset.sh` | Undo steps 2, 2b and 6 (both Mongo stacks) | — |
 | — | `99_reset_ml.sh` | Undo step 7 only | — |
 
 Full narration, expected output and the gotchas: **[RUNSHEET.md](RUNSHEET.md)** — open the

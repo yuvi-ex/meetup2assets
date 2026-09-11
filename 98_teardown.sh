@@ -48,9 +48,17 @@ ok "model, training data and training image removed"
 say "Cloned repositories"
 rm -rf "$HOME/exasol-mongodb-vs" "$HOME/language-container-rs" && ok "removed — step 1 re-clones them"
 
-say "The Rust language container  (restarts the database)"
-exasol slc remove RUST --auto-approve 2>/dev/null && ok "RUST removed" \
-  || warn "could not remove RUST — check 'exasol slc list'"
+say "The Rust language container"
+# NOT `exasol slc remove RUST` -- see unregister_script_language in lib/common.sh
+# for why that could never have worked. No database restart is needed: the new
+# SCRIPT_LANGUAGES applies to sessions opened after the ALTER SYSTEM.
+unregister_script_language RUST
+case $? in
+  0) ok "RUST unregistered (the .so was already removed from BucketFS above)" ;;
+  2) ok "RUST was not registered — nothing to do" ;;
+  *) warn "could not unregister RUST — check:"
+     warn "  SELECT SYSTEM_VALUE FROM EXA_PARAMETERS WHERE PARAMETER_NAME='SCRIPT_LANGUAGES';" ;;
+esac
 
 cat <<'DONE'
 
