@@ -1,67 +1,138 @@
-# Virtual Schema — live demo
+# Starter Kit demo — MongoDB Virtual Schema, dashboards, and a model in the database
 
-Exasol queries MongoDB with no copy, joins it to a relational table in one SELECT,
-serves six dashboards off that join, and runs a scikit-learn model inside the database.
+Everything here runs on top of the
+[Exasol Personal Local Starter Kit](https://github.com/exasol/local-agent-ready-starter):
+a real Exasol database on your own laptop. The kit is the base. This repo adds
+three things on top of it and shows them working together in about 35 minutes.
 
-> **Before you run anything, check your platform version.**
-> This kit works on Exasol Personal **2.2.0** and fails on deployments migrated
-> to **2.3.0-rc2** or later, which removed `.connection.sshPort` and moved
-> BucketFS. One command tells you which you are on:
-> ```sh
-> jq -r '.connection.sshPort // "ABSENT -- migrated, this kit will fail"' \
->   "$HOME/.exasol/personal/deployments/default/deployment.json"
-> ```
-> Full detail, verified figures and the other prerequisites:
-> **[SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md)**.
->
-> **First run on a new machine?** Run `./00_preflight.sh` first — it stops at the
-> first real blocker and tells you the command that fixes it. Then
-> `./00b_prefetch.sh` the night before, so nothing is downloaded while the room
-> watches.
+| On top of the kit | What it does |
+|---|---|
+| **MongoDB Virtual Schema** | Exasol queries MongoDB **live, with no copy and no ETL** — documents become SQL tables |
+| **dash-server** | Six persona dashboards served off the Exasol × MongoDB join |
+| **Python UDF** | A scikit-learn model trained on screen, then run **inside the database** |
 
-**Run the steps from the Command Palette:** `Cmd+Shift+P` → *Tasks: Run Task* → pick a number.
-Or in the terminal: `./01_install_vs.sh` and so on.
+The point of the demo: your relational facts stay in Exasol, your documents stay
+in MongoDB, and you answer one question across both in a single SELECT.
+
+---
+
+## The MongoDB Virtual Schema
+
+This is the centre of the demo, so it is worth being precise about what it is.
+
+A **virtual schema** makes an external system look like a normal SQL schema
+inside Exasol. Nothing is imported. When you query it, Exasol pushes filters and
+projections down to MongoDB, gets rows back, and joins them to its own tables.
+
+Creating it is two statements — no DDL, no column list, no copy:
+
+```sql
+CREATE OR REPLACE CONNECTION MONGODB_RETAIL
+  TO 'mongodb://192.168.64.1:27017/?authSource=admin'
+  USER 'analytics_reader' IDENTIFIED BY '...';
+
+CREATE VIRTUAL SCHEMA MONGO_RETAIL
+  USING MONGODB_VS.MONGODB_ADAPTER WITH
+    MONGODB_CONNECTION = 'MONGODB_RETAIL'
+    DATABASE   = 'retail'
+    COLLECTION = 'customers';
+```
+
+**Nested documents become related tables automatically.** One `customers`
+collection with `location`, `loyalty` and `preferences` objects inside each
+document turns into four queryable tables:
+
+| Table | What it is |
+|---|---|
+| `CUSTOMERS` | the root document |
+| `CUSTOMERS_location` | the embedded `location` object |
+| `CUSTOMERS_loyalty` | the embedded `loyalty` object |
+| `CUSTOMERS_preferences` | the embedded `preferences` object |
+
+You then join them to an ordinary Exasol table in one SELECT — and the payoff of
+the demo is what that join reveals: **the CRM contradicts the orders.** Three
+customers who each spent exactly the same amount are filed in MongoDB as Bronze,
+Gold and Silver. Tier is assigned in one system, money is counted in the other,
+and nothing had ever compared the two.
+
+The adapter is Rust, which is not in Exasol's language catalog — step 1 installs
+the language container and the adapter binary for you.
+
+---
+
+## Will this run on your laptop?
+
+Be honest with yourself here rather than finding out on stage.
+
+| Needs | Why |
+|---|---|
+| **Apple silicon Mac** | the prebuilt Rust container is `aarch64` only |
+| **Exasol Personal 2.2.0** | 2.3.0-rc2 and later moved BucketFS; this kit fails there |
+| **Docker running** | MongoDB runs in it (`mongo:8.2` or newer) |
+| **~25 GB free disk, 16 GB RAM** | the VM, two language containers, images and data |
+
+One command tells you whether your platform is the supported one:
+
+```sh
+jq -r '.connection.sshPort // "ABSENT -- migrated platform, this kit will fail"' \
+  "$HOME/.exasol/personal/deployments/default/deployment.json"
+```
+
+Full detail: **[SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md)**.
+
+## Run it
+
+```sh
+./00_preflight.sh     # stops at the first blocker and names the fix
+./00b_prefetch.sh     # the night before — caches every download
+```
+
+Then run the numbered steps one at a time so the room sees each land. In VS Code:
+`Cmd+Shift+P` → *Tasks: Run Task* → pick a number.
 
 | Step | Script | What the room sees | Time |
 |---|---|---|---|
-| 0 | `00_preflight.sh` | Green checks, or **it stops** at the first blocker | — |
-| 0b | `00b_prefetch.sh` | Every download, cached. **Run the night before.** | 8 min |
-| 1 | `01_install_vs.sh` | Rust SLC → adapter built → BucketFS → 2 SQL scripts | 6 min |
+| 1 | `01_install_vs.sh` | Rust container → adapter → BucketFS → 2 SQL scripts | 6 min |
 | 2 | `02_load_mongodb.sh` | 250 nested documents into MongoDB | 4 min |
 | 2b | `02b_load_superstore.sh` | 51,290 Superstore docs — **step 7 needs this** | 3 min |
 | 3 | `03_load_exasol.sh` | 2,500 order lines into a typed Exasol table | 3 min |
-| 4 | `04_create_virtual_schema.sh` | One collection becomes four SQL tables | 5 min |
+| 4 | `04_create_virtual_schema.sh` | **One collection becomes four SQL tables** | 5 min |
 | 5 | `05_the_question.sh` | **The join. The CRM contradicts the orders.** | 9 min |
 | 6 | `06_dashboard.sh` | Six persona dashboards on that join | 8 min |
-| 7 | `07_ml_udf.sh` | **train.py → .pkl → BucketFS → SQL → ask the AI** | 10 min |
-| — | `99_reset.sh` | Undo steps 2, 2b and 6 (both Mongo stacks) | — |
-| — | `99_reset_ml.sh` | Undo step 7 only | — |
+| 7 | `07_ml_udf.sh` | train.py → .pkl → BucketFS → SQL → ask the AI | 10 min |
 
-Full narration, expected output and the gotchas: **[RUNSHEET.md](RUNSHEET.md)** — open the
-preview with `Cmd+Shift+V`.
+`run_all.sh` does the lot unattended — for rehearsal, not for the talk.
+`99_reset.sh` undoes steps 2, 2b and 6; `99_reset_ml.sh` undoes step 7.
 
-## Files worth opening on screen
+Dashboards land on <http://127.0.0.1:5100/>.
 
-| Path | Why it matters |
+## Presenting it
+
+| Doc | For |
 |---|---|
-| `ml/train.py` | Ordinary scikit-learn. **No Exasol-specific code in it at all.** |
-| `ml/export_training_data.sql` | Training rows pulled out of MongoDB by SQL |
-| `ml/Dockerfile` | Pinned to the exact versions the Exasol Python SLC ships |
-| `sql/predict_loss.sql` | The UDF — model loaded once per process, scores a DataFrame |
-| `sql/orders_enriched.sql` | The join, as a view: Exasol facts × MongoDB documents |
-| `lib/common.sh` | Shared helpers; every gotcha is a comment here |
+| **[RUNSHEET.md](RUNSHEET.md)** | The full talk track: narration, expected output, every gotcha |
+| **[DEMO_PROMPTS.md](DEMO_PROMPTS.md)** | The same demo driven entirely by asking an AI in plain English |
+| **[SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md)** | What is verified, and what is not |
+
+Both datasets are generated and the generator shows through in places. RUNSHEET
+lists exactly where, and the dashboards say it themselves in their own panels —
+naming it costs thirty seconds and buys the room's trust for everything else.
 
 ## The two addresses that break people
 
-- `192.168.64.1` in the connection string, never `127.0.0.1` — it is dialled from
-  inside the Exasol VM.
-- BucketFS is a **directory** on the node: `/var/lib/exa/bucketfs/<service>/<bucket>/`,
-  read by UDFs as `/buckets/<service>/<bucket>/`.
+- **`192.168.64.1`** in the MongoDB connection string, never `127.0.0.1` — the
+  string is dialled from *inside* the Exasol VM, so localhost would be the VM.
+- **BucketFS is a directory** on the node, `/var/lib/exa/bucketfs/<service>/<bucket>/`,
+  which UDFs read as `/buckets/<service>/<bucket>/`.
 
-## Ask the AI (step 7's finish)
+## The model inside the database (step 7)
 
-With the `exasol` MCP server connected, in plain English:
+`ml/train.py` is ordinary scikit-learn with **no Exasol-specific code in it at
+all**. Its training rows are pulled out of MongoDB by SQL, through the virtual
+schema. The resulting `.pkl` goes into BucketFS, and a Python UDF scores all
+51,290 documents from a SELECT — nothing leaves either database.
 
-1. *What user-defined functions exist in the ML schema, and what does ML.PREDICT_LOSS take?*
-2. *Use ML.PREDICT_LOSS to find the 10 riskiest Furniture order lines in the EU market.*
-3. *How much of Superstore's total loss sits in lines the model scores above 0.9?*
+Read it as calibration: the band the model calls safe lost money on 0.1% of
+lines; the band it flags lost money on 99.5%.
+
+Sample data for demonstration purposes. `LICENSE` covers the code in this repo.
