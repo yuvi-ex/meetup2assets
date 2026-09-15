@@ -119,10 +119,11 @@ blocks with the marketplace command if neither is present.
 
 Stated plainly so nobody reads this file as a green light:
 
-- **The demo has not been run start-to-finish on the verified machine.** `RETAIL`
-  does not exist there, and neither the RUST nor the PYTHON3 SLC is installed.
-  `00_preflight.sh` passes and `00b_prefetch.sh` completes — that is not the same
-  as a completed run.
+- ~~The demo has not been run start-to-finish.~~ **Done, 2026-09-15.** A single
+  `bootstrap.sh` run went from a deleted clone to `ALL STEPS DONE`: the Rust SLC
+  and adapter installed, both virtual schemas created, all six dashboards
+  answering on `:5100`, and the model scoring from SQL. Note the caches were
+  warm, so this says nothing about first-run download time.
 - **A clean-room check was done, not a clean machine.** `~/exasol-recipes` and the
   cached clones were hidden and the flow re-run to prove nothing depends on
   them. That catches missing dependencies; it does not catch anything that

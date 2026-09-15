@@ -21,9 +21,16 @@ curl -fsSL https://raw.githubusercontent.com/yuvi-ex/starterkit-dashserver-VS-UD
 ```
 
 That is the whole thing: it gates on the platform limits below, clones into
-`~/starterkit-vs-udf`, caches every download, then runs all seven steps — about
-50 minutes unattended on a first run. Dashboards land on
-**http://127.0.0.1:5100/**.
+`~/starterkit-vs-udf`, caches every download, then runs all seven steps.
+Dashboards land on **http://127.0.0.1:5100/**.
+
+Budget **about an hour for a first run** — most of that is downloading two
+container images, two repositories and a 200 MB language container. Once those
+are cached a full rebuild is under ten minutes.
+
+> Verified end to end on 2026-09-15: this one command took a deleted directory
+> to `ALL STEPS DONE`, with `RETAIL`, `MONGODB_VS`, `MONGO_RETAIL`,
+> `MONGO_SUPERSTORE` and `ML` created and all six dashboards answering.
 
 It never prompts, so an AI agent can run it — every failure exits non-zero
 naming the one command that fixes it, and re-running is the repair. Add
@@ -132,7 +139,7 @@ Dashboards land on <http://127.0.0.1:5100/>.
 |---|---|
 | **[RUNSHEET.md](RUNSHEET.md)** | The full talk track: narration, expected output, every gotcha |
 | **[DEMO_PROMPTS.md](DEMO_PROMPTS.md)** | The same demo driven entirely by asking an AI in plain English |
-| **[SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md)** | What is verified, and what is not |
+| **[SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md)** | The platform boundary, and what is verified |
 
 Both datasets are generated and the generator shows through in places. RUNSHEET
 lists exactly where, and the dashboards say it themselves in their own panels —
