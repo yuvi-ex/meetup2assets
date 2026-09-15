@@ -14,6 +14,24 @@ three things on top of it and shows them working together in about 35 minutes.
 The point of the demo: your relational facts stay in Exasol, your documents stay
 in MongoDB, and you answer one question across both in a single SELECT.
 
+## Run it
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/yuvi-ex/starterkit-dashserver-VS-UDF/main/bootstrap.sh | sh
+```
+
+That is the whole thing: it gates on the platform limits below, clones into
+`~/starterkit-vs-udf`, caches every download, then runs all seven steps — about
+50 minutes unattended on a first run. Dashboards land on
+**http://127.0.0.1:5100/**.
+
+It never prompts, so an AI agent can run it — every failure exits non-zero
+naming the one command that fixes it, and re-running is the repair. Add
+`--install-kit` to install the starter kit and dash-server too.
+
+**Presenting it? Do not use this.** Run the numbered steps one at a time so the
+room sees each land — see [Run it step by step](#run-it-step-by-step).
+
 ---
 
 ## The MongoDB Virtual Schema
@@ -80,21 +98,9 @@ jq -r '.connection.sshPort // "ABSENT -- migrated platform, this kit will fail"'
 
 Full detail: **[SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md)**.
 
-## Run it
+## Run it step by step
 
-**One command, nothing to clone first:**
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/yuvi-ex/starterkit-dashserver-VS-UDF/main/bootstrap.sh | sh
-```
-
-It checks the platform limits above, clones into `~/starterkit-vs-udf`, runs
-preflight, caches every download, then runs all seven steps — about 50 minutes
-unattended on a first run. It never prompts, so an AI agent can run it; every
-failure exits non-zero naming the one command that fixes it. Re-running is the
-repair. Add `--install-kit` to install the starter kit and dash-server too.
-
-**Or drive it yourself**, which is what you want when presenting:
+This is the path for presenting: each step lands in front of the room.
 
 ```sh
 ./00_preflight.sh     # stops at the first blocker and names the fix
