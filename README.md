@@ -82,6 +82,20 @@ Full detail: **[SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md)**.
 
 ## Run it
 
+**One command, nothing to clone first:**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/yuvi-ex/starterkit-dashserver-VS-UDF/main/bootstrap.sh | sh
+```
+
+It checks the platform limits above, clones into `~/starterkit-vs-udf`, runs
+preflight, caches every download, then runs all seven steps — about 50 minutes
+unattended on a first run. It never prompts, so an AI agent can run it; every
+failure exits non-zero naming the one command that fixes it. Re-running is the
+repair. Add `--install-kit` to install the starter kit and dash-server too.
+
+**Or drive it yourself**, which is what you want when presenting:
+
 ```sh
 ./00_preflight.sh     # stops at the first blocker and names the fix
 ./00b_prefetch.sh     # the night before — caches every download
